@@ -1,9 +1,11 @@
 package com.mrcrayfish.furniture.refurbished.client.gui.screen;
 
 import com.mojang.authlib.GameProfile;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mrcrayfish.furniture.refurbished.client.gui.widget.IconButton;
 import com.mrcrayfish.furniture.refurbished.client.util.ScreenHelper;
 import com.mrcrayfish.furniture.refurbished.inventory.PostBoxMenu;
+import com.mrcrayfish.furniture.refurbished.mail.DeliveryResult;
 import com.mrcrayfish.furniture.refurbished.mail.IMailbox;
 import com.mrcrayfish.furniture.refurbished.network.Network;
 import com.mrcrayfish.furniture.refurbished.network.message.MessageSendPackage;
@@ -21,11 +23,13 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -43,9 +47,10 @@ import java.util.UUID;
 public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
 {
     private static final Component MAILBOXES_LABEL = Utils.translation("gui", "mailboxes");
+    private static final MutableComponent DEFAULT_MAILBOX_NAME = Utils.translation("gui", "default_mailbox_name");
+    private static final MutableComponent UNKNOWN_MAILBOX_OWNER = Utils.translation("gui", "unknown_mailbox_owner");
     private static final ResourceLocation POST_BOX_TEXTURE = Utils.resource("textures/gui/container/post_box.png");
     private static final ResourceLocation VILLAGER_TEXTURE = new ResourceLocation("textures/gui/container/villager2.png");
-    private static final List<IMailbox> MAILBOX_CACHE = new ArrayList<>();
     private static final Map<UUID, PlayerInfo> PLAYER_INFO_CACHE = new HashMap<>();
 
     private static final int SCROLL_SPEED = 5;
@@ -58,6 +63,7 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
     private static final int CONTAINER_HEIGHT = 130;
     private static final int CONTAINER_WIDTH = 85;
     private static final int MAX_VISIBLE_ITEMS = Mth.ceil((double) CONTAINER_HEIGHT / MAILBOX_ENTRY_HEIGHT) + 1;
+    private static final int MAX_RESPONSE_DISPLAY_TIME = 100;
 
     protected List<IMailbox> mailboxes = new ArrayList<>();
     protected IMailbox selected;
@@ -68,6 +74,9 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
     protected String message = "";
     protected int scroll;
     protected int clickedY = -1;
+    protected @Nullable String responseTranslationKey;
+    protected boolean responseSuccess;
+    protected int responseTimer;
 
     public PostBoxScreen(PostBoxMenu menu, Inventory playerInventory, Component title)
     {
@@ -126,6 +135,14 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
     {
         this.searchEditBox.tick();
         this.messageEditBox.tick();
+        if(this.responseTranslationKey != null)
+        {
+            this.responseTimer++;
+            if(this.responseTimer == MAX_RESPONSE_DISPLAY_TIME)
+            {
+                this.responseTranslationKey = null;
+            }
+        }
     }
 
     @Override
@@ -153,7 +170,7 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
         // Draw mailboxes list
         graphics.enableScissor(this.leftPos + CONTAINER_LEFT, this.topPos + CONTAINER_TOP, this.leftPos + CONTAINER_LEFT + CONTAINER_WIDTH, this.topPos + CONTAINER_TOP + CONTAINER_HEIGHT);
         int scroll = this.clampScroll(this.scroll + this.getDeltaScroll(mouseY));
-        int startIndex = Mth.clamp(scroll / MAILBOX_ENTRY_HEIGHT, 0, Math.max(0, this.mailboxes.size() - 1 - MAX_VISIBLE_ITEMS));
+        int startIndex = Mth.clamp(scroll / MAILBOX_ENTRY_HEIGHT, 0, Math.max(0, this.mailboxes.size() - MAX_VISIBLE_ITEMS));
         int maxItems = Math.min(MAX_VISIBLE_ITEMS, this.mailboxes.size());
         for(int i = 0; i < maxItems; i++)
         {
@@ -175,14 +192,20 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
             }
 
             // Draw the name of the mailbox
-            String mailboxName = mailbox.getCustomName().orElse("Mailbox");
+            Component mailboxName = mailbox.getCustomName()
+                .filter(s -> !s.isBlank())
+                .map(Component::literal)
+                .orElse(DEFAULT_MAILBOX_NAME);
             graphics.drawString(this.font, mailboxName, entryX + 15, entryY + 3, selected ? 0xFFFFFF55 : 0xFFFFFFFF);
 
             // Create a tooltip of the owners username if the cursor hovers the face image
             if(this.isHovering((entryX - this.leftPos) + 3, (entryY - this.topPos) + 3, 8, 8, mouseX, mouseY))
             {
-                String ownerName = mailbox.getOwner().map(GameProfile::getName).orElse("Unknown Player");
-                this.setTooltipForNextRenderPass(Component.literal(ownerName));
+                Component ownerName = mailbox.getOwner()
+                    .map(GameProfile::getName)
+                    .map(Component::literal)
+                    .orElse(UNKNOWN_MAILBOX_OWNER);
+                this.setTooltipForNextRenderPass(ownerName);
             }
         }
         graphics.disableScissor();
@@ -200,6 +223,37 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
                     graphics.blit(POST_BOX_TEXTURE, this.leftPos + 235 + i * 18, this.topPos + 14 + j * 18, 85, 172, 16, 16, 512, 256);
                 }
             }
+        }
+
+        // Draw response message
+        if(this.responseTranslationKey != null && this.responseTimer < MAX_RESPONSE_DISPLAY_TIME)
+        {
+            Component responseMessage = Component.translatable(this.responseTranslationKey);
+            int contentWidth = this.font.width(responseMessage) + 4;
+            int responseToastWidth = 4 + contentWidth + 3;
+            int responseToastLeft = this.leftPos + this.imageWidth / 2 - responseToastWidth / 2;
+            int responseToastTop = this.topPos - 22;
+            PoseStack poseStack = graphics.pose();
+            poseStack.pushPose();
+            if(this.responseTimer < 5)
+            {
+                float frameTime = this.minecraft.getFrameTime();
+                poseStack.translate(0, (5 - (this.responseTimer + frameTime)) * 5, 0);
+            }
+            else if(MAX_RESPONSE_DISPLAY_TIME - this.responseTimer < 5)
+            {
+                float frameTime = this.minecraft.getFrameTime();
+                float offset = 5 - (MAX_RESPONSE_DISPLAY_TIME - (this.responseTimer + frameTime));
+                poseStack.translate(0, offset * 5, 0);
+            }
+            graphics.enableScissor(responseToastLeft, this.topPos - 22, responseToastLeft + responseToastWidth, this.topPos);
+            int toastU = this.responseSuccess ? 8 : 0;
+            graphics.blit(POST_BOX_TEXTURE, responseToastLeft, responseToastTop, toastU, 200, 4, 18, 512, 256);
+            graphics.blit(POST_BOX_TEXTURE, responseToastLeft + 4, responseToastTop, contentWidth, 18, toastU + 4, 200, 1, 18, 512, 256);
+            graphics.blit(POST_BOX_TEXTURE, responseToastLeft + 4 + contentWidth, responseToastTop, toastU + 5, 200, 3, 18, 512, 256);
+            graphics.drawString(this.font, responseMessage, responseToastLeft + 6, responseToastTop + 5, 0xFFFFFFFF);
+            graphics.disableScissor();
+            poseStack.popPose();
         }
 
         if(this.isHovering(91, 5, 10, 10, mouseX, mouseY))
@@ -350,7 +404,7 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
      */
     private void updateSearchFilter()
     {
-        List<IMailbox> filteredMailboxes = MAILBOX_CACHE.stream().filter(mailbox -> {
+        List<IMailbox> filteredMailboxes = this.menu.getMailboxes().stream().filter(mailbox -> {
             if(this.query.startsWith("@")) {
                 String ownerName = mailbox.getOwner().map(GameProfile::getName).orElse("Unknown");
                 return StringUtils.containsIgnoreCase(ownerName, this.query.substring(1));
@@ -393,20 +447,25 @@ public class PostBoxScreen extends AbstractContainerScreen<PostBoxMenu>
     }
 
     /**
+     * Shows a response message if received one from the server. This is called when a mail queue is
+     * full or the selected mailbox is in an undeliverable dimension.
+     *
+     * @param result the result of the delivery
+     */
+    public void showResponse(DeliveryResult result)
+    {
+        result.message().ifPresent(key -> {
+            this.responseSuccess = result.success();
+            this.responseTranslationKey = key;
+            this.responseTimer = 0;
+        });
+    }
+
+    /**
      * Resets the text in the message edit box
      */
     public void clearMessage()
     {
         this.messageEditBox.setValue("");
-    }
-
-    /**
-     * Updates the mailbox cache from the server
-     * @param mailboxes the list of new mailboxes
-     */
-    public static void updateMailboxes(Collection<? extends IMailbox> mailboxes)
-    {
-        MAILBOX_CACHE.clear();
-        MAILBOX_CACHE.addAll(mailboxes);
     }
 }

@@ -19,7 +19,6 @@ public class Network
             .registerPlayMessage(MessageSyncFluid.class, MessageDirection.PLAY_CLIENT_BOUND)
             .registerPlayMessage(MessageFlipAnimation.class, MessageDirection.PLAY_CLIENT_BOUND)
             .registerPlayMessage(MessageSetName.class, MessageDirection.PLAY_SERVER_BOUND)
-            .registerPlayMessage(MessageUpdateMailboxes.class, MessageDirection.PLAY_CLIENT_BOUND)
             .registerPlayMessage(MessageSendPackage.class, MessageDirection.PLAY_SERVER_BOUND)
             .registerPlayMessage(MessageClearMessage.class, MessageDirection.PLAY_CLIENT_BOUND)
             .registerPlayMessage(MessageDoorbellNotification.class, MessageDirection.PLAY_CLIENT_BOUND)
@@ -45,6 +44,7 @@ public class Network
             .registerPlayMessage(MessageWorkbench.SearchNeighbours.class, MessageDirection.PLAY_SERVER_BOUND)
             .registerPlayMessage(MessageNameMailbox.class, MessageDirection.PLAY_CLIENT_BOUND)
             .registerPlayMessage(MessageWithdrawExperience.class, MessageDirection.PLAY_SERVER_BOUND)
+            .registerPlayMessage(MessageShowDeliveryResult.class, MessageDirection.PLAY_CLIENT_BOUND)
             .build();
     }
 
