@@ -19,7 +19,6 @@ public class Network
             .registerPlayMessage("sync_fluid", MessageSyncFluid.class, MessageSyncFluid::encode, MessageSyncFluid::decode, MessageSyncFluid::handle, PacketFlow.CLIENTBOUND)
             .registerPlayMessage("flip_animation", MessageFlipAnimation.class, MessageFlipAnimation::encode, MessageFlipAnimation::decode, MessageFlipAnimation::handle, PacketFlow.CLIENTBOUND)
             .registerPlayMessage("set_name", MessageSetName.class, MessageSetName::encode, MessageSetName::decode, MessageSetName::handle, PacketFlow.SERVERBOUND)
-            .registerPlayMessage("update_mailboxes", MessageUpdateMailboxes.class, MessageUpdateMailboxes::encode, MessageUpdateMailboxes::decode, MessageUpdateMailboxes::handle, PacketFlow.CLIENTBOUND)
             .registerPlayMessage("send_package", MessageSendPackage.class, MessageSendPackage::encode, MessageSendPackage::decode, MessageSendPackage::handle, PacketFlow.SERVERBOUND)
             .registerPlayMessage("clear_message", MessageClearMessage.class, MessageClearMessage::encode, MessageClearMessage::decode, MessageClearMessage::handle, PacketFlow.CLIENTBOUND)
             .registerPlayMessage("doorbell_notification", MessageDoorbellNotification.class, MessageDoorbellNotification::encode, MessageDoorbellNotification::decode, MessageDoorbellNotification::handle, PacketFlow.CLIENTBOUND)
@@ -45,6 +44,7 @@ public class Network
             .registerPlayMessage("workbench_search_neighbours", MessageWorkbench.SearchNeighbours.class, MessageWorkbench.SearchNeighbours::encode, MessageWorkbench.SearchNeighbours::decode, MessageWorkbench.SearchNeighbours::handle, PacketFlow.SERVERBOUND)
             .registerPlayMessage("name_mailbox", MessageNameMailbox.class, MessageNameMailbox::encode, MessageNameMailbox::decode, MessageNameMailbox::handle, PacketFlow.CLIENTBOUND)
             .registerPlayMessage("withdraw_experience", MessageWithdrawExperience.class, MessageWithdrawExperience::encode, MessageWithdrawExperience::decode, MessageWithdrawExperience::handle, PacketFlow.SERVERBOUND)
+            .registerPlayMessage("show_delivery_result", MessageShowDeliveryResult.class, MessageShowDeliveryResult::encode, MessageShowDeliveryResult::decode, MessageShowDeliveryResult::handle, PacketFlow.CLIENTBOUND)
             .build();
     }
 

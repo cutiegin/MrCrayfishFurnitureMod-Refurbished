@@ -59,6 +59,7 @@ public abstract class ElectricitySourceContainerBlockEntity extends Randomizable
     public void setNodeOverloaded(boolean overloaded)
     {
         this.overloaded = overloaded;
+        this.setChanged();
     }
 
     @Override

@@ -8,7 +8,10 @@ import com.mrcrayfish.framework.api.config.FrameworkConfig;
 import com.mrcrayfish.framework.api.config.IntProperty;
 import com.mrcrayfish.framework.api.config.ListProperty;
 import com.mrcrayfish.framework.api.config.LongProperty;
+import com.mrcrayfish.framework.api.config.validate.Validator;
 import com.mrcrayfish.furniture.refurbished.platform.Services;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Author: MrCrayfish
@@ -111,6 +114,27 @@ public class Config
                 ]
                 ^ Note: This is just an example. Write your list below.""")
             public final ListProperty<String> bannedItems = ListProperty.create(ListProperty.STRING);
+
+            @ConfigProperty(name = "allowedDimensions", comment = """
+            A list of dimensions you are allowed to place mailboxes. An empty list means that
+            mailboxes can be placed in any dimension.
+            An example of how the list is defined:
+            allowedDimensions = [
+                "minecraft:overworld",
+                "minecraft:the_nether",
+                ...
+            ]
+            ^ Note: This is just an example. Write your list below.""")
+            public final ListProperty<String> allowedDimensions = ListProperty.create(ListProperty.STRING, new Validator<>() {
+                @Override
+                public boolean test(String value) {
+                    return ResourceLocation.isValidResourceLocation(value);
+                }
+                @Override
+                public Component getHint() {
+                    return Component.literal("Must a valid ResourceLocation, e.g. \"namespace:path\"");
+                }
+            });
         }
 
         public static class Electricity
@@ -145,6 +169,22 @@ public class Config
                 The maximum amount of nodes in a network that can be powered by an electricity
                 source, like the electricity generator.""")
             public final IntProperty maximumNodesInNetwork = IntProperty.create(64, 1, 512);
+
+            @ConfigProperty(name = "cheats", comment = "Cheats for electricity. Free power, etc.")
+            public final Cheats cheats = new Cheats();
+
+            public static class Cheats
+            {
+                @ConfigProperty(name = "freeGeneratorPower", comment = """
+                Electricity Generators will now output free power, and stay on forever.""")
+                public final BoolProperty freeGeneratorPower = BoolProperty.create(false);
+
+                @ConfigProperty(name = "everythingIsPowered", comment = """
+                Makes all blocks that require electricity always be powered without them being
+                connected to an Electricity Generator. Warning, some blocks may no longer work as
+                expected. Use at your own risk of a downgraded experience.""")
+                public final BoolProperty everythingIsPowered = BoolProperty.create(false);
+            }
         }
 
         public static class RecycleBin

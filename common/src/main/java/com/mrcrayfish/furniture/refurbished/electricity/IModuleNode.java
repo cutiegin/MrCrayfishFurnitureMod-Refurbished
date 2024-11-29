@@ -1,8 +1,7 @@
 package com.mrcrayfish.furniture.refurbished.electricity;
 
-import net.minecraft.core.BlockPos;
+import com.mrcrayfish.furniture.refurbished.Config;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -32,6 +31,16 @@ public interface IModuleNode extends IElectricityNode
      */
     default void updateNodePoweredState()
     {
+        // Cheat mode for electricity. Free power
+        if(Config.SERVER.electricity.cheats.everythingIsPowered.get())
+        {
+            if(!this.isNodePowered())
+            {
+                this.setNodePowered(true);
+            }
+            return;
+        }
+
         if(!this.isNodeReceivingPower())
         {
             if(this.isNodePowered())
